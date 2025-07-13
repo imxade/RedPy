@@ -139,10 +139,10 @@ async def execute(session, config, cmd, args):
     elif cmd == "keys" and len(args) == 1 and args[0] == "*":
         return [[el for el in list(config["store"].keys())]]
     elif cmd == "info" and len(args) == 1:
-        result = f"role:{config["role"]}\n"
+        result = f"role:{config['role']}\n"
         if config["role"] == "master":
-            result += f"master_replid:{config["master_replid"]}\n"
-            result += f"master_repl_offset:{config["master_repl_offset"]}\n"
+            result += f"master_replid:{config['master_replid']}\n"
+            result += f"master_repl_offset:{config['master_repl_offset']}\n"
         return [result]
     elif cmd == "replconf":
         if args and args[0].lower() == "getack":
@@ -150,7 +150,7 @@ async def execute(session, config, cmd, args):
         return ["+OK"]
     elif cmd == "psync":
         fullsync = (
-            f"+FULLRESYNC {config["master_replid"]} {config["master_repl_offset"]}"
+            f"+FULLRESYNC {config['master_replid']} {config['master_repl_offset']}"
         )
         file_contents = bytes.fromhex(
             "524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2"

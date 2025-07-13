@@ -396,7 +396,7 @@ def read_rdb_val(dir, dbfilename, key):
     
 
 def read_key_val_from_db(dir, dbfilename, data):
-    rdb_file_loc = dir + "/" + dbfilename
+    rdb_file_loc = os.path.join(dir, dbfilename)
     if not os.path.isfile(rdb_file_loc):
         return
     with open(rdb_file_loc, "rb") as f:
