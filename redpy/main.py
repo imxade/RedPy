@@ -62,9 +62,7 @@ async def handleClient(config, reader, writer):
         if not raw:
             break
         print("RAW: ", repr(raw))
-        commands = (
-            raw.replace(b"\r\n*", b"\r\n *").replace(b" *\r", b"*\r").split(b" ")
-        )
+        commands = raw.replace(b"\r\n*", b"\r\n *").replace(b" *\r", b"*\r").split(b" ")
         print("COMMANDS: ", repr(commands))
         for command in commands:
             if not command:
@@ -234,7 +232,11 @@ async def waitForReplicas(config, num, timeoutMs):
     await sendGetAckToReplicas(config)
     deadline = time.time() + timeoutMs / 1000
     while True:
-        count = sum(1 for offset in config["replAcks"].values() if offset >= config["replOffset"])
+        count = sum(
+            1
+            for offset in config["replAcks"].values()
+            if offset >= config["replOffset"]
+        )
         if count >= num:
             return count
         now = time.time()
@@ -245,7 +247,9 @@ async def waitForReplicas(config, num, timeoutMs):
         except asyncio.TimeoutError:
             break
         config["ackEvent"].clear()
-    return sum(1 for offset in config["replAcks"].values() if offset >= config["replOffset"])
+    return sum(
+        1 for offset in config["replAcks"].values() if offset >= config["replOffset"]
+    )
 
 
 async def sendGetAckToReplicas(config):
@@ -373,5 +377,9 @@ def increment(store, key):
     return newVal
 
 
-if __name__ == "__main__":
+def main():
     asyncio.run(serveRedis())
+
+
+if __name__ == "__main__":
+    main()
