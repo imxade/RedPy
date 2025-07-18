@@ -47,6 +47,8 @@ def getConfig():
         "replOffset": 0,
         "replAcks": {},
         "ackEvent": asyncio.Event(),
+        "lists": {},
+        "listEvent": asyncio.Event(),
     }
     resp.read_key_val_from_db(config["dir"], config["dbfilename"], config["store"])
     if args.replicaof:
@@ -192,6 +194,34 @@ async def execute(session, config, cmd, args):
             return ["-ERR DISCARD without MULTI"]
         session["multi"], session["execQ"] = False, []
         return ["+OK"]
+    elif cmd == "rpush":
+        config["lists"].setdefault(args[0], []).extend(args[1:])
+        config["listEvent"].set()
+        return [len(config["lists"][args[0]])]
+    elif cmd == "lpush":
+        config["lists"][args[0]] = args[::-1][:-1] + config["lists"].get(args[0], [])
+        config["listEvent"].set()
+        return [len(config["lists"][args[0]])]
+    elif cmd == "lrange":
+        start, stop = int(args[1]), int(args[2])
+        stop = stop if stop >= 0 else len(config["lists"].get(args[0], [])) + stop
+        return [config["lists"].get(args[0], [])[start : stop + 1]]
+    elif cmd == "llen":
+        return [len(config["lists"].get(args[0], []))]
+    elif cmd == "lpop" and len(args) < 3:
+        sep = int(args[1]) if len(args) == 2 else 1
+        result = config["lists"].get(args[0], [])[:sep]
+        config["lists"][args[0]] = config["lists"][args[0]][sep:]
+        return [result] if len(result) > 1 else result
+    elif cmd == "blpop" and len(args) == 2:
+        key, sep, timeout = args[0], 1, float(args[1]) * 1000
+        if not config["lists"].get(key):
+            await _waitForEvent(config["listEvent"], timeout)
+        result = config["lists"].get(key, [])[:sep]
+        if not result:
+            return [None]
+        config["lists"][key] = config["lists"][key][sep:]
+        return [[key, result[0]]] if len(result) == 1 else [[key, result]]
 
 
 def cleanStore(store):
@@ -346,7 +376,7 @@ async def xRead(streams, streamEvent, args):
         else:
             resolvedIds.append(idStr)
     if block:
-        await _waitForKey(streamEvent, timeout)
+        await _waitForEvent(streamEvent, timeout)
     output = []
     for key, idStr in zip(keys, resolvedIds):
         results = xRange(streams.get(key, []), idStr, "+")
@@ -356,13 +386,14 @@ async def xRead(streams, streamEvent, args):
     return output if output else None
 
 
-async def _waitForKey(streamEvent, timeout):
-    streamEvent.clear()
+async def _waitForEvent(event, timeout):
+    print("Waiting for event..", repr(event), repr(timeout))
+    event.clear()
     if timeout == 0:
-        await streamEvent.wait()
+        await event.wait()
     else:
         try:
-            await asyncio.wait_for(streamEvent.wait(), timeout=timeout / 1000)
+            await asyncio.wait_for(event.wait(), timeout=timeout / 1000)
         except asyncio.TimeoutError:
             pass
 
